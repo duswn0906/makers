@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>반도체 회로 수리 미니게임</title>
+    <style>
+        /* CSS 시작 */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #222; /* 어두운 기술적인 배경색 */
+            margin: 0;
+            font-family: 'Consolas', 'Courier New', monospace; /* 터미널 느낌의 폰트 */
+            color: #eee; /* 밝은 글자색 */
+            overflow: hidden; /* 팝업으로 인해 스크롤 생기는 것 방지 */
+        }
+
+        .game-container {
+            background-color: #333; /* 어두운 패널 느낌 */
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 0 25px rgba(0, 255, 0, 0.4); /* 밝은 녹색 빛 그림자 */
+            text-align: center;
+            border: 2px solid #0f0; /* 밝은 녹색 테두리 */
+        }
+
+        h1 {
+            color: #00ff00; /* 네온 녹색 제목 */
+            margin-bottom: 30px;
+            font-size: 2.2em;
+            text-shadow: 0 0 10px #00ff00; /* 제목 빛 효과 */
+        }
+
+        .wire-board {
+            display: flex;
+            justify-content: space-around;
+            width: 500px; /* 보드 너비 증가 */
+            height: 300px; /* 보드 높이 증가 */
+            margin: 0 auto 40px auto; /* 중앙 정렬 및 여백 */
+            position: relative;
+            background: linear-gradient(45deg, #444 0%, #555 50%, #444 100%); /* 금속 질감 */
+            border: 3px solid #555;
+            border-radius: 8px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.7); /* 안쪽 그림자 */
+        }
+
+        .wire-column {
+            display: flex;
+            flex-direction: column;
+            gap: 30px; /* 간격 증가 */
+            width: 40%;
+            justify-content: space-around; /* 요소들을 균등하게 분배 */
+            padding: 20px 0; /* 상하 패딩 추가 */
+        }
+
+        .wire-end {
+            width: 70px; /* 크기 증가 */
+            height: 35px; /* 크기 증가 */
+            border-radius: 3px; /* 사각형에 가까운 단자 형태 */
+            cursor: pointer;
+            border: 2px solid #999; /* 단자 테두리 색상 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #fff; /* 단자 안의 글자색 */
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8); /* 글자 그림자 진하게 */
+            transition: all 0.15s ease-in-out; /* 부드러운 전환 효과 */
+            box-shadow: inset 0 0 8px rgba(255,255,255,0.2); /* 단자 안쪽 빛 효과 */
+            font-size: 1.5em; /* 이모티콘 크기 조정 */
+        }
+
+        .wire-end:hover {
+            transform: translateY(-2px) scale(1.05); /* 살짝 떠오르는 효과 */
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.4), 0 0 15px rgba(255,255,255,0.3); /* 주변 빛 효과 */
+        }
+
+        .wire-end.selected {
+            border: 3px solid #ffcc00; /* 선택된 전선 테두리 */
+            box-shadow: inset 0 0 15px rgba(255,255,0,0.7), 0 0 20px rgba(255,255,0,0.5); /* 선택 시 더 강한 빛 효과 */
+            transform: scale(1.08);
+        }
+
+        /* 완료된 단자/포트 빛 효과 */
+        .wire-end.correct-connection-glow {
+            animation: glow-pulse 1.5s infinite alternate;
+            border-color: #00ff00; /* 테두리도 빛나게 */
+        }
+
+        @keyframes glow-pulse {
+            from {
+                box-shadow: inset 0 0 8px rgba(0,255,0,0.2), 0 0 10px rgba(0,255,0,0.5);
+                text-shadow: 1px 1px 3px rgba(0,0,0,0.8), 0 0 5px rgba(0,255,0,0.7);
+            }
+            to {
+                box-shadow: inset 0 0 20px rgba(0,255,0,0.7), 0 0 30px rgba(0,255,0,1);
+                text-shadow: 1px 1px 3px rgba(0,0,0,0.8), 0 0 15px rgba(0,255,0,1);
+            }
+        }
+
+
+        /* 전선 색상 (이미지에 맞게 유지) */
+        .color-1 { background-color: #00A600; } /* 녹색 */
+        .color-2 { background-color: #0000CC; } /* 파랑 */
+        .color-3 { background-color: #CCCC00; } /* 노랑 */
+        .color-4 { background-color: #E60000; } /* 빨강 */
+
+        /* 오른쪽 전선 색상 (이미지에 맞게 유지) */
+        .right-color-1 { background-color: #E60000; } /* 빨강 */
+        .right-color-2 { background-color: #CCCC00; } /* 노랑 */
+        .right-color-3 { background-color: #0000CC; } /* 파랑 */
+        .right-color-4 { background-color: #00A600; } /* 녹색 */
+
+        /* 연결선 스타일 */
+        .connector-line {
+            position: absolute;
+            height: 4px; /* 선 굵기 증가 */
+            background-color: #00ff00; /* 네온 녹색 (기본값) */
+            z-index: -1;
+            opacity: 0.8; /* 약간의 투명도 */
+            box-shadow: 0 0 8px #00ff00; /* 선에 빛 효과 */
+        }
+
+        /* 정답 여부에 따른 선 스타일 */
+        .connector-line.correct {
+            opacity: 1; /* 정답일 때 선명하게 */
+            background-color: #00ff00; /* 항상 네온 녹색으로 유지 */
+            box-shadow: 0 0 12px #00ff00; /* 정답일 때 빛을 더 강하게 */
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 1.2em;
+            background-color: #007bff; /* 파란색 유지 */
+            color: white;
+            border: 2px solid #0056b3;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            margin-top: 30px; /* 상단 여백 증가 */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+
+        #message {
+            margin-top: 25px;
+            font-size: 1.3em;
+            color: #00ff00; /* 메시지 글자색도 네온 녹색으로 */
+            text-shadow: 0 0 8px rgba(0,255,0,0.5); /* 메시지 빛 효과 */
+        }
+
+        #message.success {
+            color: #00ff00; /* 성공 메시지 색상 */
+            font-weight: bold;
+            animation: pulse 1s infinite alternate; /* 깜빡이는 효과 */
+        }
+
+        @keyframes pulse {
+            from { text-shadow: 0 0 8px rgba(0,255,0,0.5); }
+            to { text-shadow: 0 0 20px rgba(0,255,0,1), 0 0 30px rgba(0,255,0,0.8); }
+        }
+
+        /* 팝업 스타일 */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); /* 어두운 반투명 배경 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* 최상위 */
+        }
+
+        .popup-content {
+            background-color: #333;
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid #0f0;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.6);
+            text-align: center;
+            max-width: 500px;
+            color: #eee;
+        }
+
+        .popup-content h2 {
+            color: #00ff00;
+            margin-bottom: 20px;
+            text-shadow: 0 0 8px #00ff00;
+        }
+
+        .popup-content p {
+            margin-bottom: 25px;
+            line-height: 1.6;
+            font-size: 1.1em;
+        }
+
+        .popup-content button {
+            background-color: #00aaff;
+            border: 2px solid #0077cc;
+            font-size: 1.1em;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            color: white;
+            transition: background-color 0.2s;
+        }
+
+        .popup-content button:hover {
+            background-color: #0077cc;
+        }
+        /* CSS 끝 */
+    </style>
+</head>
+<body>
+    <div class="popup-overlay" id="intro-popup">
+        <div class="popup-content">
+            <h2>🚨 시스템 오류 감지: 회로 수리 필요 🚨</h2>
+            <p>환영합니다, 엔지니어! 🚀 시스템에 알 수 없는 오류가 발생했습니다. 모든 전원 단자가 비활성화된 상태입니다.</p>
+            <p>당신의 임무는 왼쪽의 **입력 단자**와 오른쪽의 **출력 포트**를 올바르게 연결하여 시스템을 복구하는 것입니다. 🧩</p>
+            <p>같은 색상의 단자와 포트를 연결하면 됩니다. 연결이 완료되면 시스템이 재활성화됩니다. 행운을 빕니다! ✨</p>
+            <button id="start-game-button">수리 시작</button>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <h1>반도체 회로 수리 미니게임</h1>
+        <div class="wire-board">
+            <div id="left-wires" class="wire-column"></div>
+            <div id="right-wires" class="wire-column"></div>
+        </div>
+        <button id="reset-button">시스템 재부팅</button>
+        <p id="message"></p>
+    </div>
+
+    <script>
+        // JavaScript 시작
+        document.addEventListener('DOMContentLoaded', () => {
+            const leftWireContainer = document.getElementById('left-wires');
+            const rightWireContainer = document.getElementById('right-wires');
+            const resetButton = document.getElementById('reset-button');
+            const messageDisplay = document.getElementById('message');
+            const wireBoard = document.querySelector('.wire-board');
+            const introPopup = document.getElementById('intro-popup');
+            const startGameButton = document.getElementById('start-game-button');
+
+            const numWires = 4;
+            const leftColorsMapping = {
+                0: 'color-1', // 1번 녹색
+                1: 'color-2', // 2번 파란색
+                2: 'color-3', // 3번 노란색
+                3: 'color-4'  // 4번 빨간색
+            };
+            const rightColorsMapping = {
+                0: 'right-color-1', // 1번 빨간색
+                1: 'right-color-2', // 2번 노란색
+                2: 'right-color-3', // 3번 파란색
+                3: 'right-color-4'  // 4번 녹색
+            };
+
+            const leftEmojis = ['⚡', '💡', '🔗', '⚙️'];
+            const rightEmojis = ['🔌', '🔋', '📡', '🖥️'];
+
+            let leftWires = [];
+            let rightWires = [];
+            let selectedLeftWire = null;
+            let connections = {}; // {leftWireIndex: {element: rightWireElement, line: lineElement}}
+            let solution = {};
+
+            // 게임 보드 초기화 및 전선 생성 함수
+            // 이 함수는 게임 요소 생성 및 초기 상태 설정만 담당합니다.
+            // 실제 게임 시작(클릭 이벤트 활성화)은 팝업 후에 이루어집니다.
+            function initGameElements() {
+                // 기존 전선 및 연결선 제거
+                leftWireContainer.innerHTML = '';
+                rightWireContainer.innerHTML = '';
+                const existingLines = document.querySelectorAll('.connector-line');
+                existingLines.forEach(line => line.remove());
+
+                messageDisplay.textContent = ''; // 초기 메시지는 팝업에 의해 가려지므로 비워둡니다.
+                messageDisplay.className = '';
+                selectedLeftWire = null;
+                connections = {};
+                solution = {};
+
+                leftWires = [];
+                rightWires = [];
+
+                // 왼쪽 단자 생성 (숫자 없이 이모티콘 사용)
+                for (let i = 0; i < numWires; i++) {
+                    const wireEnd = document.createElement('div');
+                    wireEnd.classList.add('wire-end', leftColorsMapping[i]);
+                    wireEnd.dataset.index = i;
+                    wireEnd.dataset.color = leftColorsMapping[i];
+                    wireEnd.textContent = leftEmojis[i];
+                    // 이벤트 리스너는 게임 시작 시에만 추가 (activeGame 함수에서)
+                    leftWireContainer.appendChild(wireEnd);
+                    leftWires.push(wireEnd);
+                }
+
+                // 오른쪽 포트 생성 (숫자 없이 이모티콘 사용)
+                for (let i = 0; i < numWires; i++) {
+                    const wireEnd = document.createElement('div');
+                    wireEnd.classList.add('wire-end', rightColorsMapping[i]);
+                    wireEnd.dataset.index = i;
+                    wireEnd.dataset.color = rightColorsMapping[i];
+                    wireEnd.textContent = rightEmojis[i];
+                    // 이벤트 리스너는 게임 시작 시에만 추가 (activeGame 함수에서)
+                    rightWireContainer.appendChild(wireEnd);
+                    rightWires.push(wireEnd);
+                }
+
+                // 정답 설정 (각 왼쪽 전선의 색깔에 맞는 오른쪽 전선의 인덱스)
+                solution[0] = rightWires.findIndex(wire => wire.dataset.color === 'right-color-4'); // 왼쪽 1(녹) -> 오른쪽 4(녹)
+                solution[1] = rightWires.findIndex(wire => wire.dataset.color === 'right-color-3'); // 왼쪽 2(파) -> 오른쪽 3(파)
+                solution[2] = rightWires.findIndex(wire => wire.dataset.color === 'right-color-2'); // 왼쪽 3(노) -> 오른쪽 2(노)
+                solution[3] = rightWires.findIndex(wire => wire.dataset.color === 'right-color-1'); // 왼쪽 4(빨) -> 오른쪽 1(빨)
+
+                console.log("Solution:", solution); // 디버깅용
+            }
+
+            // 게임을 활성화하는 함수 (클릭 이벤트 리스너 추가 등)
+            function activateGame() {
+                messageDisplay.textContent = '회로 연결을 시작하세요!'; // 게임 시작 메시지
+                leftWires.forEach(wire => wire.addEventListener('click', () => selectLeftWire(wire)));
+                rightWires.forEach(wire => wire.addEventListener('click', () => connectWires(wire)));
+            }
+
+            // 왼쪽 단자 선택
+            function selectLeftWire(wireElement) {
+                // 이전에 선택된 전선이 있다면 선택 해제
+                if (selectedLeftWire) {
+                    selectedLeftWire.classList.remove('selected');
+                }
+                selectedLeftWire = wireElement;
+                selectedLeftWire.classList.add('selected');
+            }
+
+            // 단자-포트 연결 시도
+            function connectWires(rightWireElement) {
+                if (!selectedLeftWire) {
+                    messageDisplay.textContent = '먼저 입력 단자를 선택하세요!';
+                    return;
+                }
+
+                const leftIndex = parseInt(selectedLeftWire.dataset.index);
+                const rightIndex = parseInt(rightWireElement.dataset.index);
+
+                // 이전 연결이 있다면 해당 단자와 포트의 빛 효과 제거 및 선 제거
+                if (connections[leftIndex]) {
+                    const oldRightElement = connections[leftIndex].element;
+                    const oldLine = connections[leftIndex].line;
+
+                    if (oldRightElement) oldRightElement.classList.remove('correct-connection-glow');
+                    selectedLeftWire.classList.remove('correct-connection-glow'); // 선택된 왼쪽 단자에서도 제거
+                    if (oldLine) oldLine.remove();
+                }
+
+                // 새로운 연결 기록 및 선 그리기
+                const newLine = drawConnection(selectedLeftWire, rightWireElement);
+                connections[leftIndex] = {
+                    element: rightWireElement,
+                    line: newLine
+                };
+
+                const isCorrect = (solution[leftIndex] === rightIndex);
+                if (isCorrect) {
+                    newLine.classList.add('correct');
+                    selectedLeftWire.classList.add('correct-connection-glow'); // 정답일 때 빛 효과 추가
+                    rightWireElement.classList.add('correct-connection-glow'); // 정답일 때 빛 효과 추가
+                } else {
+                    newLine.classList.remove('correct');
+                    newLine.style.backgroundColor = '#ff0000'; // 오류 시 붉은색
+                    newLine.style.boxShadow = '0 0 12px #ff0000';
+                    selectedLeftWire.classList.remove('correct-connection-glow'); // 틀리면 빛 효과 제거
+                    rightWireElement.classList.remove('correct-connection-glow'); // 틀리면 빛 효과 제거
+                }
+
+                selectedLeftWire.classList.remove('selected'); // 선택 해제
+                selectedLeftWire = null;
+
+                checkGameCompletion();
+            }
+
+            // 연결선 그리기
+            function drawConnection(startElement, endElement) {
+                const startRect = startElement.getBoundingClientRect();
+                const endRect = endElement.getBoundingClientRect();
+                const boardRect = wireBoard.getBoundingClientRect();
+
+                const startX = startRect.right - boardRect.left;
+                const startY = startRect.top + startRect.height / 2 - boardRect.top;
+                const endX = endRect.left - boardRect.left;
+                const endY = endRect.top + endRect.height / 2 - boardRect.top;
+
+                const line = document.createElement('div');
+                line.classList.add('connector-line');
+                wireBoard.appendChild(line);
+
+                const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+
+                line.style.width = `${length}px`;
+                line.style.transform = `rotate(${angle}deg)`;
+                line.style.transformOrigin = `0 0`;
+                line.style.left = `${startX}px`;
+                line.style.top = `${startY}px`;
+
+                return line;
+            }
+
+            // 게임 완료 확인
+            function checkGameCompletion() {
+                let allCorrect = true;
+                for (let i = 0; i < numWires; i++) {
+                    if (!connections[i] || solution[i] !== parseInt(connections[i].element.dataset.index)) {
+                        allCorrect = false;
+                        break;
+                    }
+                }
+
+                if (allCorrect) {
+                    messageDisplay.textContent = '✅ 모든 회로가 정상 작동합니다! 시스템 복구 완료! 🎉';
+                    messageDisplay.classList.add('success');
+                    // 모든 전선이 연결되었으면 더 이상 클릭할 수 없게 막기
+                    leftWires.forEach(wire => wire.removeEventListener('click', selectLeftWire));
+                    rightWires.forEach(wire => wire.removeEventListener('click', connectWires));
+                } else {
+                    messageDisplay.textContent = '⚠️ 회로 연결 상태를 다시 확인하세요. 오류가 감지되었습니다.';
+                    messageDisplay.classList.remove('success');
+                }
+            }
+
+            // 시스템 재부팅 버튼 클릭 시
+            resetButton.addEventListener('click', () => {
+                introPopup.style.display = 'flex'; // 설명서 팝업 다시 표시
+                // 게임 상태를 완전히 초기화
+                initGameElements(); // 게임 요소만 초기화 (이벤트 리스너는 아직 추가 안 됨)
+                // 모든 빛 효과 및 선택 상태, 메시지 제거
+                leftWires.forEach(wire => wire.classList.remove('correct-connection-glow', 'selected'));
+                rightWires.forEach(wire => wire.classList.remove('correct-connection-glow'));
+                messageDisplay.textContent = '';
+                selectedLeftWire = null;
+                connections = {}; // 연결 정보 초기화
+            });
+
+            // 시작 버튼 클릭 시 팝업 닫고 게임 시작
+            startGameButton.addEventListener('click', () => {
+                introPopup.style.display = 'none'; // 팝업 숨기기
+                initGameElements(); // 게임 요소 초기화 및 생성
+                activateGame(); // 게임 활성화 (클릭 이벤트 리스너 추가)
+            });
+
+            // 페이지 로드 시: 게임 요소는 일단 생성하되, 팝업을 먼저 보여줌
+            initGameElements();
+            // 초기에는 게임이 비활성화 상태
+            leftWires.forEach(wire => wire.removeEventListener('click', selectLeftWire));
+            rightWires.forEach(wire => wire.removeEventListener('click', connectWires));
+        });
+        // JavaScript 끝
+    </script>
+</body>
+</html>s

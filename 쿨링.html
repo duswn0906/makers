@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>반도체 냉각 게임</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    .timer-wrapper {
+      margin-bottom: 20px;
+    }
+    .timer {
+      font-size: 26px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #333;
+      padding: 10px 25px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      text-align: center;
+      letter-spacing: 1px;
+      user-select: none;
+      width: 90px;
+    }
+    .timer.urgent {
+      background-color: #d32f2f !important;
+      animation: blink 0.8s infinite;
+    }
+    @keyframes blink {
+      0% { background-color: #d32f2f; }
+      50% { background-color: #b71c1c; }
+      100% { background-color: #d32f2f; }
+    }
+    .game-container {
+      display: flex;
+      gap: 30px;
+      align-items: flex-start;
+      margin-bottom: 30px;
+    }
+    .semiconductors {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      width: 260px;
+      min-height: 100px;
+      border: 2px solid #999;
+      border-radius: 10px;
+      padding: 10px;
+      background-color: #fff;
+    }
+    .semiconductor {
+      width: 80px;
+      height: 80px;
+      border: 2px solid #555;
+      border-radius: 8px;
+      cursor: grab;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 20px;
+      color: white;
+      overflow: hidden;
+      user-select: none;
+    }
+    .hot { background-color: red; }
+    .normal { background-color: blue; }
+    .cooling { background-color: orange !important; }
+    .cooled { background-color: blue !important; }
+
+    .cooler {
+      width: 150px;
+      height: 300px;
+      background-color: #b3e5fc;
+      border: 3px dashed #0288d1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 20px;
+      text-align: center;
+      position: relative;
+      user-select: none;
+    }
+    .cooler.hovered { background-color: #81d4fa; }
+
+    .power-button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #777;
+      color: white;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(0,0,0,0.3);
+      transition: background-color 0.3s;
+      user-select: none;
+    }
+    .power-button.on {
+      background-color: #4caf50;
+    }
+
+    .progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 6px;
+      width: 0%;
+      background-color: limegreen;
+      transition: width 0.1s linear;
+    }
+    .basket-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+      user-select: none;
+    }
+    .basket-label {
+      margin-bottom: 6px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .basket {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      width: 440px;
+      min-height: 100px;
+      border: 2px dashed #666;
+      border-radius: 10px;
+      padding: 10px;
+      background-color: #f5f5f5;
+    }
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+    .modal {
+      background-color: white;
+      padding: 30px 40px;
+      border-radius: 10px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+      font-size: 20px;
+      font-weight: bold;
+      color: green;
+      animation: popup 0.5s ease-out;
+      max-width: 400px;
+      user-select: none;
+      white-space: pre-line;
+    }
+    .modal-title {
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .modal p {
+      text-align: left;
+      margin-bottom: 20px;
+      line-height: 1.3;
+    }
+    .modal.fail { color: red; }
+    #startOverlay button {
+      display: block;
+      margin: 0 auto;
+      background-color: #0288d1;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+    #startOverlay button:hover { background-color: #0277bd; }
+
+    @keyframes popup {
+      from { transform: scale(0.7); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    #blackoutModal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.85);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      color: white;
+      font-size: 36px;
+      font-weight: bold;
+      user-select: none;
+      flex-direction: column;
+      gap: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1> 반도체 냉각 게임 </h1>
+  <div class="timer-wrapper">
+    <div class="timer" id="timer">00:30</div>
+  </div>
+  <div class="game-container">
+    <div class="semiconductors" id="chipArea">
+      <div class="semiconductor hot" draggable="true" id="chip1">🔥</div>
+      <div class="semiconductor normal" draggable="true" id="chip2">😎</div>
+      <div class="semiconductor hot" draggable="true" id="chip3">🔥</div>
+      <div class="semiconductor normal" draggable="true" id="chip4">😎</div>
+      <div class="semiconductor hot" draggable="true" id="chip5">🔥</div>
+      <div class="semiconductor normal" draggable="true" id="chip6">😎</div>
+    </div>
+    <div class="cooler" id="cooler">
+      <div class="power-button" id="powerButton" title="전원 켜기/끄기">⏻</div>
+      쿨러
+    </div>
+  </div>
+  <div class="basket-section">
+    <div class="basket-label">🧺</div>
+    <div class="basket" id="basket" ondragover="event.preventDefault()"></div>
+  </div>
+
+  <div class="modal-overlay" id="startOverlay" style="display: flex;">
+    <div class="modal">
+      <div class="modal-title">🔧 게임 안내</div>
+      <p>
+        ‧쿨러의 전원을 켜고, 발열이 심한 반도체를<br>쿨러에 넣어 냉각시킨 후, 🧺에 담으면 성공<br>
+        ‧제한 시간 <strong>30초</strong><br>
+        ‧멀쩡한 반도체를 쿨러에 넣으면 시간 -3초<br>
+        ‧정전이 잠깐 발생할 수 있음
+      </p>
+      <button id="startButton">START</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalMessage">🎉성공!</div>
+  </div>
+
+  <div id="blackoutModal">
+    <div>⚡️ 정전 발생 ⚡️</div>
+    <div><span id="blackoutCountdown">3</span>초 후 복구</div>
+  </div>
+
+<script>
+// (자바스크립트는 너무 길어져 이 댓글에 다 못 담기 때문에 이어서 아래에 이어서 보내드릴게요.)
+</script>
+</body>
+</html>
+<script>
+  const chips = document.querySelectorAll('.semiconductor');
+  const cooler = document.getElementById('cooler');
+  const basket = document.getElementById('basket');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const modalMessage = document.getElementById('modalMessage');
+  const timerDisplay = document.getElementById('timer');
+  const startOverlay = document.getElementById('startOverlay');
+  const startButton = document.getElementById('startButton');
+  const powerButton = document.getElementById('powerButton');
+  const blackoutModal = document.getElementById('blackoutModal');
+  const blackoutCountdown = document.getElementById('blackoutCountdown');
+
+  let coolerOn = false;
+  let totalHot = document.querySelectorAll('.hot').length;
+  let cooledAndStored = 0;
+  let gameEnded = false;
+  let timeLeft = 30;
+  let timerInterval = null;
+  let blackoutTriggered = false;
+
+  const coolingIntervals = {};
+
+  powerButton.addEventListener('click', () => {
+    coolerOn = !coolerOn;
+    powerButton.classList.toggle('on', coolerOn);
+    if (coolerOn) {
+      for (const id in coolingIntervals) {
+        if (!coolingIntervals[id].intervalId) {
+          startCoolingInterval(id);
+        }
+      }
+    } else {
+      for (const id in coolingIntervals) {
+        if (coolingIntervals[id].intervalId) {
+          clearInterval(coolingIntervals[id].intervalId);
+          coolingIntervals[id].intervalId = null;
+        }
+      }
+    }
+  });
+
+  function formatTime(seconds) {
+    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function startGame() {
+    timerInterval = setInterval(() => {
+      if (gameEnded) return clearInterval(timerInterval);
+      timeLeft--;
+      timerDisplay.textContent = formatTime(timeLeft);
+      if (timeLeft <= 5) timerDisplay.classList.add("urgent");
+
+      if (!blackoutTriggered && timeLeft <= 19 && timeLeft >= 13) {
+        blackoutTriggered = true;
+        triggerBlackout();
+      }
+
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        endGame(false);
+      }
+    }, 1000);
+  }
+
+  startButton.addEventListener('click', () => {
+    startOverlay.style.display = 'none';
+    timerDisplay.textContent = formatTime(timeLeft);
+    startGame();
+  });
+
+  chips.forEach(chip => {
+    chip.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', chip.id);
+    });
+  });
+
+  cooler.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    cooler.classList.add('hovered');
+  });
+
+  cooler.addEventListener('dragleave', () => {
+    cooler.classList.remove('hovered');
+  });
+
+  cooler.addEventListener('drop', (e) => {
+    e.preventDefault();
+    cooler.classList.remove('hovered');
+    if (gameEnded) return;
+
+    const id = e.dataTransfer.getData('text/plain');
+    const chip = document.getElementById(id);
+
+    if (!coolerOn) {
+      alert("⚠️ 쿨러 전원이 꺼져 있습니다! 전원을 켜주세요.");
+      return;
+    }
+
+    const currentChipsInCooler = cooler.querySelectorAll('.semiconductor.cooling').length;
+    if (currentChipsInCooler >= 2) {
+      alert("⚠️ 쿨러에는 한 번에 최대 2개의 반도체만 넣을 수 있습니다!");
+      return;
+    }
+
+    if (chip.classList.contains('cooling') || chip.classList.contains('cooled')) return;
+
+    if (!chip.classList.contains('hot')) {
+      alert("🚫 이 반도체는 쿨링할 필요가 없습니다! (시간 -3초)");
+      timeLeft = Math.max(0, timeLeft - 3);
+      timerDisplay.textContent = formatTime(timeLeft);
+      if (timeLeft === 0) endGame(false);
+      return;
+    }
+
+    chip.classList.add('cooling');
+    chip.classList.remove('hot');
+    chip.innerHTML = '';
+    chip.setAttribute('draggable', false);
+
+    const bar = document.createElement('div');
+    bar.classList.add('progress-bar');
+    chip.appendChild(bar);
+    cooler.appendChild(chip);
+
+    const coolingTime = 3000 + Math.random() * 3000;
+    const intervalTime = 50;
+    const totalTicks = coolingTime / intervalTime;
+
+    coolingIntervals[id] = {
+      intervalId: null,
+      progress: 0,
+      totalTicks,
+      bar,
+      coolingTime
+    };
+
+    if (coolerOn) {
+      startCoolingInterval(id);
+    }
+  });
+
+  function startCoolingInterval(id) {
+    const data = coolingIntervals[id];
+    if (!data) return;
+
+    data.intervalId = setInterval(() => {
+      if (!coolerOn) return;
+      data.progress++;
+      const widthPercent = (data.progress / data.totalTicks) * 100;
+      data.bar.style.width = `${widthPercent}%`;
+
+      if (data.progress >= data.totalTicks) {
+        clearInterval(data.intervalId);
+        data.intervalId = null;
+
+        const chip = document.getElementById(id);
+        chip.classList.remove('cooling');
+        chip.classList.add('cooled');
+        chip.innerHTML = '😇';
+        chip.appendChild(data.bar);
+        chip.setAttribute('draggable', true);
+        chip.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', chip.id);
+        });
+      }
+    }, 50);
+  }
+
+  basket.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (gameEnded) return;
+
+    const id = e.dataTransfer.getData('text/plain');
+    const chip = document.getElementById(id);
+
+    if (chip.classList.contains('cooled')) {
+      cooledAndStored++;
+      chip.classList.remove('cooled');
+      basket.appendChild(chip);
+      checkSuccess();
+    }
+  });
+
+  function checkSuccess() {
+    if (cooledAndStored === totalHot) endGame(true);
+  }
+
+  function endGame(success) {
+    gameEnded = true;
+    modalOverlay.style.display = 'flex';
+    modalMessage.textContent = success ? "🎉성공!" : "⏰실패!(시간 초과)";
+    modalMessage.className = success ? "modal" : "modal fail";
+    clearInterval(timerInterval);
+
+    coolerOn = false;
+    powerButton.classList.remove('on');
+    for (const id in coolingIntervals) {
+      if (coolingIntervals[id].intervalId) {
+        clearInterval(coolingIntervals[id].intervalId);
+        coolingIntervals[id].intervalId = null;
+      }
+    }
+  }
+
+  function triggerBlackout() {
+    if (gameEnded) return;
+
+    const prevCoolerOn = coolerOn;
+
+    blackoutModal.style.display = 'flex';
+    document.body.style.backgroundColor = '#222';
+    cooler.classList.add('blackout');
+
+    coolerOn = false;
+    powerButton.classList.remove('on');
+    for (const id in coolingIntervals) {
+      if (coolingIntervals[id].intervalId) {
+        clearInterval(coolingIntervals[id].intervalId);
+        coolingIntervals[id].intervalId = null;
+      }
+    }
+
+    let count = 3;
+    blackoutCountdown.textContent = count;
+    const blackoutTimer = setInterval(() => {
+      count--;
+      blackoutCountdown.textContent = count;
+      if (count <= 0) {
+        clearInterval(blackoutTimer);
+        blackoutModal.style.display = 'none';
+        document.body.style.backgroundColor = '#f0f0f0';
+        cooler.classList.remove('blackout');
+
+        coolerOn = prevCoolerOn;
+        powerButton.classList.toggle('on', coolerOn);
+
+        if (coolerOn) {
+          for (const id in coolingIntervals) {
+            if (!coolingIntervals[id].intervalId) {
+              startCoolingInterval(id);
+            }
+          }
+        }
+      }
+    }, 1000);
+  }
+</script>

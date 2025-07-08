@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>회로 연결 게임</title>
+
+<style>
+  body {
+    font-family: sans-serif;
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    user-select: none;
+  }
+  h1 {
+    margin-bottom: 12px;
+    display: flex; /* h1과 ? 버튼을 같은 줄에 배치하기 위해 flex 사용 */
+    align-items: center;
+    gap: 10px; /* h1과 ? 버튼 사이 간격 */
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(6, 60px);
+    grid-template-rows: repeat(6, 60px);
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .cell {
+    width: 60px; height: 60px;
+    background: white;
+    border-radius: 8px;
+    border: 2px solid #666;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: default;
+    box-sizing: border-box;
+    overflow: hidden; /* 전류 표시를 위해 추가 */
+  }
+  .pipe {
+    cursor: pointer;
+    transition: transform 0.3s;
+  }
+  .V {
+    font-weight: bold;
+    font-size: 20px;
+    color: red;
+    text-align: center;
+    line-height: 1.2;
+    padding-top: 5px;
+  }
+  .R, .L {
+    font-weight: bold;
+    font-size: 16px;
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
+    padding-top: 5px;
+  }
+  .R { color: #d35400; }
+  .L { color: green; }
+
+  .rotation-indicator {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    font-size: 10px;
+    color: #888;
+  }
+  #message {
+    font-size: 20px;
+    font-weight: bold;
+    color: blue;
+    min-height: 30px;
+  }
+  /* Current flow feedback - 전압 세기에 따른 색깔 변화 */
+  .cell.powered.V { background-color: #ffccbc; } /* V는 고정 */
+  .cell.powered.R { background-color: #ffccb2; } /* R도 고정 */
+  
+  /* 전압 레벨에 따른 파이프/LED 색상 변화 */
+  .voltage-level-5 { background-color: #ffe0b2; box-shadow: 0 0 8px #ff9100; } /* 오렌지 빛 */
+  .voltage-level-4 { background-color: #ffecb3; box-shadow: 0 0 6px #ffbf00; } /* 진한 노랑 */
+  .voltage-level-3 { background-color: #fff9c4; box-shadow: 0 0 4px #ffee58; } /* 중간 노랑 */
+  .voltage-level-2 { background-color: #fffde7; box-shadow: 0 0 2px #f1ecb7; } /* 연한 노랑 */
+  .voltage-level-1 { background-color: #f8f8f8; } /* 거의 흰색 */
+
+  /* LED specific states */
+  .cell.L.correct {
+      background-color: #b3f7b3;
+      border-color: green;
+  }
+  .cell.L.incorrect {
+      background-color: #f7b3b3; /* 밝은 빨강 */
+      border-color: red;
+  }
+  .button-container {
+      margin-top: 20px;
+  }
+  button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      margin: 0 5px;
+      transition: background-color 0.2s;
+  }
+  button:hover {
+      background-color: #0056b3;
+  }
+
+  /* 모달 관련 CSS */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background-color: white;
+    padding: 30px 40px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+  }
+
+  .modal-content h2 {
+    margin-top: 0;
+    color: #333;
+    font-size: 28px;
+    margin-bottom: 20px;
+  }
+
+  .modal-content p {
+    font-size: 18px;
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 25px;
+  }
+
+  .modal-close-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 5px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .modal-close-button:hover {
+    background-color: #0056b3;
+  }
+
+  /* 초기에는 숨김 */
+  #startModal, #winModal, #helpModal { /* helpModal도 초기에는 숨김 */
+    display: none;
+  }
+
+  /* 도움말 버튼 스타일 */
+  #helpButton {
+    background-color: #6c757d; /* 회색 계열 */
+    color: white;
+    border-radius: 50%; /* 원형 */
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    line-height: 1; /* ? 기호 수직 정렬 */
+  }
+
+  #helpButton:hover {
+    background-color: #5a6268;
+  }
+</style>
+</head>
+<body>
+  <h1>회로 연결 게임 <div id="helpButton">?</div></h1> <div id="board"></div>
+  <div id="message"></div>
+  <div class="button-container">
+      <button id="resetButton">재시작</button>
+  </div>
+
+  <div id="startModal" class="modal-overlay">
+    <div class="modal-content">
+      <h2>게임 방법</h2>
+      <p>
+        ⚡️ <b>V</b>에서 시작하는 전기를 <b>R</b>을 지나 <b>L</b>까지 연결하세요.<br>
+        파이프를 클릭하여 회전시킬 수 있습니다.<br>
+        <b>R</b>은 전압의 숫자만큼 전기을 감소시키고, <b>L</b>은 LED의 숫자의 전압에서만 불이 들어옵니다.<br>
+        <b>V</b>와 <b>R</b>의 합이 <b>L</b>이 되어야 합니다.
+        모든 <b>L</b>에 정확한 전압이 도달하면 성공입니다!
+      </p>
+      </p>
+      <button class="modal-close-button" id="startGameButton">게임 시작!</button>
+    </div>
+  </div>
+
+  <div id="winModal" class="modal-overlay">
+    <div class="modal-content">
+      <h2>🎉 성공! 🎉</h2>
+      <p>모든 LED에 정확한 전압이 도달했습니다!</p>
+      <button class="modal-close-button" id="closeWinModalButton">확인</button>
+    </div>
+  </div>
+
+  <div id="helpModal" class="modal-overlay">
+    <div class="modal-content">
+      <h2>게임 방법</h2>
+      <p>
+       ⚡️ <b>V</b>에서 시작하는 전기를 <b>R</b>을 지나 <b>L</b>까지 연결하세요.<br>
+        파이프를 클릭하여 회전시킬 수 있습니다.<br>
+        <b>R</b>은 전압의 숫자만큼 전기을 감소시키고, <b>L</b>은 LED의 숫자의 전압에서만 불이 들어옵니다.<br>
+        <b>V</b>와 <b>R</b>의 합이 <b>L</b>이 되어야 합니다.
+        모든 <b>L</b>에 정확한 전압이 도달하면 성공입니다!
+      </p>
+      </p>
+      <button class="modal-close-button" id="closeHelpModalButton">닫기</button>
+    </div>
+  </div>
+
+<script>
+  // 사용자 요청에 따라 T자 파이프를 다시 포함시키고 배열 수정
+  const initialGrid = [
+    ["V", "pipeT", "pipeLine","pipeLine" , "pipeLine", "L5"], // pipeT 다시 추가
+    [" ", "pipeLine", "R2", "pipeLine", "pipeCorner"," "], // pipeCorner -> 공백, pipeT -> pipeLine
+    [" ", "pipeLine", "pipeCorner","pipeCorner" ,"pipeCorner" ,"L2"],
+    [" ", "R1", " ", "L4", "pipeCorner" , " "],
+    [" ", "pipeCorner", "pipeLine", "pipeLine", "pipeCorner", " "],
+    [" ", " ", " ", " ", " ", " "]
+  ];
+
+  let currentGrid = JSON.parse(JSON.stringify(initialGrid));
+
+  const resistors = {
+    "R1": 1,
+    "R2": 2
+  };
+
+  const leds = {
+    "L2": 2,
+    "L4": 4,
+    "L5": 5
+  };
+
+  const ROWS = currentGrid.length;
+  const COLS = currentGrid[0].length;
+
+  const START_VOLTAGE = 5;
+
+  const dirMap = [
+    [-1,0], // 0: 위 (Up)
+    [0,1],  // 1: 오른쪽 (Right)
+    [1,0],  // 2: 아래 (Down)
+    [0,-1]  // 3: 왼쪽 (Left)
+  ];
+
+  // pipeCorner의 0도 기본 연결 방향을 '오른쪽, 아래' (`┐`)로 고정
+  // pipeT도 다시 포함
+  // [위, 오른쪽, 아래, 왼쪽] 순서
+  const pipeConnections = {
+    "pipeLine": [true, false, true, false],   // 직선 (상하)
+    "pipeCorner": [false, true, true, false], // 직각 (0도일 때 오른쪽, 아래 연결 -> ┐ 모양)
+    "pipeT": [true, true, true, false],       // T자 (위,오른쪽,아래 연결) - 다시 추가
+    "pipeCross": [true, true, true, true],    // 십자 (전방향 연결)
+  };
+
+  let rotations = new Array(ROWS*COLS); // 각 셀의 현재 회전 상태를 저장
+
+  const board = document.getElementById("board");
+  const message = document.getElementById("message");
+  const resetButton = document.getElementById("resetButton");
+
+  // 추가된 DOM 요소 변수
+  const startGameButton = document.getElementById("startGameButton");
+  const closeWinModalButton = document.getElementById("closeWinModalButton");
+  const startModal = document.getElementById("startModal");
+  const winModal = document.getElementById("winModal");
+
+  // 새로 추가된 도움말 모달 관련 DOM 요소 변수
+  const helpButton = document.getElementById("helpButton");
+  const helpModal = document.getElementById("helpModal");
+  const closeHelpModalButton = document.getElementById("closeHelpModalButton");
+
+
+  const cells = []; // 셀 객체들을 저장 {element, row, col, type}
+
+  // pipeCorner 심볼을 '┐'으로 유지하고 pipeT 심볼도 다시 포함
+  // (이전 요청에서 '┌'으로 되어 있던 것을 '┐'으로 수정하고, 이번 요청에서는 원본 코드에 따라 '┌'으로 유지합니다.)
+  const pipeSymbols = {
+    "pipeLine": "│",
+    "pipeCorner": "┌", 
+    "pipeT": "├", // T자 심볼 다시 추가
+    "pipeCross": "┼"
+  };
+
+  function createBoard() {
+    board.innerHTML = '';
+    cells.length = 0;
+
+    for(let r=0; r<ROWS; r++) {
+      for(let c=0; c<COLS; c++) {
+        const cellType = currentGrid[r][c];
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+
+        if(cellType in pipeConnections) {
+          cell.classList.add("pipe");
+          cell.textContent = pipeSymbols[cellType]; 
+
+          // 초기 파이프를 랜덤하게 회전
+          const randomRot = Math.floor(Math.random() * 4) * 90; // 0, 90, 180, 270 중 하나
+          
+          rotations[r*COLS + c] = randomRot; // 초기 회전 상태 설정
+          cell.style.transform = `rotate(${randomRot}deg)`;
+
+          const rotLabel = document.createElement("div");
+          rotLabel.className = "rotation-indicator";
+          rotLabel.textContent = randomRot + "°";
+          cell.appendChild(rotLabel);
+
+          cell.addEventListener("click", () => {
+            const idx = r*COLS + c;
+            rotations[idx] = (rotations[idx] + 90) % 360;
+            cell.style.transform = `rotate(${rotations[idx]}deg)`;
+            rotLabel.textContent = rotations[idx] + "°";
+            simulateCurrentFlow(); // 회전 후 전류 흐름 시뮬레이션
+          });
+        } else {
+          if(cellType === "V") {
+            cell.classList.add("V");
+            cell.textContent = `V\n(${START_VOLTAGE}V)`;
+            rotations[r*COLS + c] = 0;
+          } else if(cellType.startsWith("R")) {
+            cell.classList.add("R");
+            cell.textContent = `${cellType}\n(-${resistors[cellType]}V)`;
+            rotations[r*COLS + c] = 0;
+          } else if(cellType.startsWith("L")) {
+            cell.classList.add("L");
+            cell.textContent = `${cellType}\n(${leds[cellType]}V)`;
+            rotations[r*COLS + c] = 0;
+          } else {
+            cell.textContent = "";
+            rotations[r*COLS + c] = 0;
+          }
+        }
+
+        board.appendChild(cell);
+        cells.push({
+          element: cell,
+          row: r,
+          col: c,
+          type: cellType
+        });
+      }
+    }
+  }
+
+  function rotatedConnections(connections, rotation) {
+    const steps = rotation / 90;
+    const result = [];
+    for(let i=0; i<4; i++) {
+      result[i] = connections[(i - steps + 4) % 4];
+    }
+    return result;
+  }
+
+  function getCellConnections(r, c) {
+      const idx = r * COLS + c;
+      const cellType = currentGrid[r][c];
+      const rotation = rotations[idx]; // 현재 파이프의 회전 상태
+
+      if (cellType in pipeConnections) {
+          return rotatedConnections(pipeConnections[cellType], rotation);
+      } else if (cellType === "V") {
+          return [false, true,false , false]; // V 소스는 오른쪽으로만 연결하도록 수정
+      } else if (cellType.startsWith("R") || cellType.startsWith("L")) {
+          // 저항 및 LED는 실제로는 특정 방향으로만 전류를 받아들이지만,
+          // 현재 시뮬레이션에서는 모든 방향에서 연결 가능하다고 가정하여 회로 연결의 복잡성을 줄임.
+          return [true, true, true, true]; 
+      }
+      return [false, false, false, false];
+  }
+
+  // 전류 흐름 시뮬레이션 및 정답 확인
+  function simulateCurrentFlow() {
+    cells.forEach(cell => {
+        // 기존 powered 클래스 제거 및 배경색 초기화
+        cell.element.classList.remove("powered", "correct", "incorrect", 
+                                       "voltage-level-1", "voltage-level-2", 
+                                       "voltage-level-3", "voltage-level-4", "voltage-level-5");
+        if (cell.type !== " ") {
+            cell.element.style.backgroundColor = '';
+            cell.element.style.boxShadow = ''; // 그림자 제거
+        }
+        cell.element.title = '';
+    });
+
+    const voltages = Array.from({length: ROWS}, () => Array(COLS).fill(null));
+    const queue = [];
+
+    let vPos = null;
+    for(let i=0; i<cells.length; i++) {
+      if(cells[i].type === "V") {
+        vPos = {r: cells[i].row, c: cells[i].col};
+        break;
+      }
+    }
+    if(!vPos) {
+      message.textContent = "⚠️ 시작점 V를 찾을 수 없습니다.";
+      return;
+    }
+
+    queue.push({r: vPos.r, c: vPos.c, voltage: START_VOLTAGE});
+    voltages[vPos.r][vPos.c] = START_VOLTAGE;
+    cells[vPos.r * COLS + vPos.c].element.classList.add("powered"); // V는 항상 powered
+    // V 셀에 전압 레벨 클래스 추가 (굳이 필요 없지만 일관성을 위해)
+    cells[vPos.r * COLS + vPos.c].element.classList.add(`voltage-level-${START_VOLTAGE}`);
+
+
+    while(queue.length > 0) {
+      const {r, c, voltage} = queue.shift();
+      const currentCellIdx = r*COLS + c;
+      const currentCell = cells[currentCellIdx];
+      const currentCellType = currentCell.type;
+
+      let voltageToPropagate = voltage;
+      if(currentCellType.startsWith("R")) {
+        const drop = resistors[currentCellType] || 0;
+        voltageToPropagate = voltage - drop;
+        if(voltageToPropagate < 0) voltageToPropagate = 0; // 전압이 0 미만으로 떨어지지 않도록
+      }
+
+      const currentCellConnections = getCellConnections(r, c);
+
+      for(let d=0; d<4; d++) {
+        if(!currentCellConnections[d]) continue;
+
+        const nr = r + dirMap[d][0];
+        const nc = c + dirMap[d][1];
+
+        if(nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+
+        const nextCellIdx = nr*COLS + nc;
+        const nextCell = cells[nextCellIdx];
+        const nextCellType = nextCell.type;
+
+        if(nextCellType === " ") continue;
+
+        const nextCellConnections = getCellConnections(nr, nc);
+        const oppositeDir = (d + 2) % 4;
+
+        if(!nextCellConnections[oppositeDir]) continue;
+
+        // 더 높은 전압이 도달하거나 처음 도달하는 경우 업데이트
+        if(voltages[nr][nc] === null || voltages[nr][nc] < voltageToPropagate) {
+          voltages[nr][nc] = voltageToPropagate;
+          nextCell.element.classList.add("powered");
+          // 전압 레벨에 따른 클래스 추가
+          const roundedVoltage = Math.max(0, Math.min(START_VOLTAGE, Math.round(voltageToPropagate))); // 0~5V
+          nextCell.element.classList.add(`voltage-level-${roundedVoltage}`);
+          queue.push({r: nr, c: nc, voltage: voltageToPropagate});
+        }
+      }
+    }
+
+    let allLEDsCorrect = true;
+    let anyLEDExists = false;
+
+    for(let i=0; i<cells.length; i++) {
+      const cell = cells[i];
+      // LED 전압 확인
+      if(cell.type.startsWith("L")) {
+        anyLEDExists = true;
+        const requiredV = leds[cell.type] || 0;
+        const gotV = voltages[cell.row][cell.col] || 0;
+
+        cell.element.title = `요구 전압: ${requiredV}V, 도달 전압: ${gotV}V`;
+
+        if (gotV > 0) { // 전압이 0보다 커야 powered로 간주
+            cell.element.classList.add("powered"); 
+            if(gotV === requiredV) {
+                cell.element.classList.add("correct");
+                cell.element.classList.remove("incorrect");
+            } else {
+                cell.element.classList.add("incorrect");
+                cell.element.classList.remove("correct");
+                allLEDsCorrect = false;
+            }
+        } else {
+            cell.element.classList.add("incorrect");
+            cell.element.classList.remove("correct");
+            allLEDsCorrect = false;
+        }
+      }
+    }
+
+    // !!! 정답 조건: 모든 LED가 초록색(정확한 전압)이 되면 정답 !!!
+    if(allLEDsCorrect && anyLEDExists) {
+      message.textContent = ""; // 기존 하단 메시지는 지우고
+      showWinModal(); // 성공 모달 띄움
+      message.style.color = ""; // 이전에 설정된 색상을 초기화
+    } else if (anyLEDExists && vPos && !cells.some(cell => cell.type.startsWith('L') && cell.element.classList.contains('powered'))) {
+        message.textContent = "회로가 연결되지 않았습니다. 파이프를 연결해주세요.";
+        message.style.color = "orange";
+    }
+    else {
+      message.textContent = "💡 모든 LED에 정확한 전압이 도달하도록 파이프를 연결하세요.";
+      message.style.color = "red";
+    }
+  }
+
+  // 모달 제어 함수
+  function showStartModal() {
+    startModal.style.display = 'flex';
+  }
+
+  function hideStartModal() {
+    startModal.style.display = 'none';
+  }
+
+  function showWinModal() {
+    winModal.style.display = 'flex';
+  }
+
+  function hideWinModal() {
+    winModal.style.display = 'none';
+  }
+
+  // 새로 추가된 도움말 모달 제어 함수
+  function showHelpModal() {
+    helpModal.style.display = 'flex';
+  }
+
+  function hideHelpModal() {
+    helpModal.style.display = 'none';
+  }
+
+  // 이벤트 리스너
+  startGameButton.addEventListener("click", () => {
+    hideStartModal();
+    // 게임 시작 시에만 보드 생성 및 시뮬레이션
+    createBoard(); 
+    simulateCurrentFlow();
+  });
+
+  closeWinModalButton.addEventListener("click", () => {
+    hideWinModal();
+  });
+
+  resetButton.addEventListener("click", () => {
+    currentGrid = JSON.parse(JSON.stringify(initialGrid));
+    hideWinModal(); // 재시작 시 성공 메시지 숨김
+    createBoard(); 
+    simulateCurrentFlow(); 
+  });
+
+  // 새로 추가된 도움말 버튼 이벤트 리스너
+  helpButton.addEventListener("click", () => {
+    showHelpModal(); // ? 버튼 클릭 시 도움말 모달 표시
+  });
+
+  closeHelpModalButton.addEventListener("click", () => {
+    hideHelpModal(); // 도움말 모달의 닫기 버튼 클릭 시 숨김
+  });
+
+  // 페이지 로드 시 시작 안내 모달 표시
+  document.addEventListener('DOMContentLoaded', showStartModal);
+</script>
+</body>
+</html>

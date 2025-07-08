@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게임 허브</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .game-menu {
+            display: list;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .game-menu a {
+            display: list-item;
+            padding: 15px 30px;
+            background-image: url("회로기판.jpg");
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .game-menu a:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        .game-menu a:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>원하는 게임을 선택하세요!</h1>
+    <div class="game-menu">
+        <a href="회로.html">회로 연결 게임</a>
+        <a href="쿨링.html">냉각 게임</a>
+        <a href="연결.html">연결 게임</a>
+        </div>
+</body>
+</html>
